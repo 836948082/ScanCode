@@ -1,10 +1,14 @@
 package com.runtai.scancode;
 
 import android.app.Activity;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.util.Log;
@@ -18,7 +22,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.zxing.Result;
+import com.runtai.scancode.utils.AlertDialog;
 import com.runtai.scancode.utils.Constant;
+import com.runtai.scancode.utils.StringUtils;
 import com.runtai.scancode.zxing.ScanListener;
 import com.runtai.scancode.zxing.ScanManager;
 import com.runtai.scancode.zxing.decode.DecodeThread;
@@ -28,9 +34,6 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.SoftReference;
-
-import butterknife.Bind;
-import butterknife.ButterKnife;
 
 /**
  * 二维码扫描使用
@@ -47,21 +50,14 @@ public final class CommonScanActivity extends Activity implements ScanListener, 
     TextView qrcode_ic_back;
     final int PHOTOREQUESTCODE = 1111;
 
-    @Bind(R.id.service_register_rescan)
-    Button rescan;
-    @Bind(R.id.scan_image)
-    ImageView scan_image;
-    @Bind(R.id.authorize_return)
-    ImageView authorize_return;
     private int scanMode;//扫描模型（条形，二维码，全部）
 
-    @Bind(R.id.common_title_TV_center)
+    Button rescan;
+    ImageView scan_image;
+    ImageView authorize_return;
     TextView title;
-    @Bind(R.id.scan_hint)
     TextView scan_hint;
-    @Bind(R.id.tv_scan_result)
     TextView tv_scan_result;
-
 
     @Override
     public void onCreate(Bundle icicle) {
@@ -70,7 +66,14 @@ public final class CommonScanActivity extends Activity implements ScanListener, 
         Window window = getWindow();
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.activity_scan_code);
-        ButterKnife.bind(this);
+
+        rescan = (Button) findViewById(R.id.service_register_rescan);
+        scan_image = (ImageView) findViewById(R.id.scan_image);
+        authorize_return = (ImageView) findViewById(R.id.authorize_return);
+        title = (TextView) findViewById(R.id.common_title_TV_center);
+        scan_hint = (TextView) findViewById(R.id.scan_hint);
+        tv_scan_result = (TextView) findViewById(R.id.tv_scan_result);
+
         scanMode = getIntent().getIntExtra(Constant.REQUEST_SCAN_MODE, Constant.REQUEST_SCAN_MODE_ALL_MODE);
         initView();
     }
@@ -103,6 +106,7 @@ public final class CommonScanActivity extends Activity implements ScanListener, 
         rescan.setOnClickListener(this);
         authorize_return.setOnClickListener(this);
         //构造出扫描管理器
+
         scanManager = new ScanManager(this, scanPreview, scanContainer, scanCropView, scanLine, scanMode, this);
     }
 
@@ -125,9 +129,9 @@ public final class CommonScanActivity extends Activity implements ScanListener, 
         //扫描成功后，扫描器不会再连续扫描，如需连续扫描，调用reScan()方法。
         //scanManager.reScan();
 //		Toast.makeText(that, "result="+rawResult.getText(), Toast.LENGTH_LONG).show();
-        Log.e("width",""+bundle.getInt("width"));
-        Log.e("height",""+bundle.getInt("height"));
-        Log.e("result",""+bundle.getString("result"));
+        Log.e("width", "" + bundle.getInt("width"));
+        Log.e("height", "" + bundle.getInt("height"));
+        Log.e("result", "" + bundle.getString("result"));
         if (!scanManager.isScanning()) { //如果当前不是在扫描状态
             //设置再次扫描按钮出现
             rescan.setVisibility(View.VISIBLE);
@@ -145,9 +149,12 @@ public final class CommonScanActivity extends Activity implements ScanListener, 
         scan_image.setVisibility(View.VISIBLE);
         tv_scan_result.setVisibility(View.VISIBLE);
         tv_scan_result.setText("结果：" + rawResult.getText());
+        handleText(rawResult.getText());
     }
 
-    /** 如果程序出现oom就用这个方法 */
+    /**
+     * 如果程序出现oom就用这个方法
+     */
     public static Bitmap byteToBitmap(byte[] imgByte) {
         InputStream input = null;
         Bitmap bitmap = null;
@@ -239,6 +246,90 @@ public final class CommonScanActivity extends Activity implements ScanListener, 
             default:
                 break;
         }
+    }
+
+    /**
+     * 扫描结果
+     * 判断扫描结果是否是URL或TEXT
+     */
+    private void handleText(String text) {
+        if (StringUtils.isUrl(text)) {
+            showUrlOption(text);
+        } else {
+            handleOtherText(text);
+        }
+    }
+
+    /**
+     * URL地址 提示打开(可再判断是否是image图片地址)
+     */
+    private void showUrlOption(final String url) {
+        Log.e("扫面结果", "是个网址");
+        new AlertDialog(CommonScanActivity.this).builder().setMsg("是否打开该链接?" + "\n" + url)
+                .setPositiveButton("打开", new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        startE(url);
+                    }
+                })
+                .setNegativeButton("取消", new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        startScan();
+                    }
+                }).show();
+    }
+
+    /**
+     * 启用外部浏览器(或内置浏览器)
+     */
+    public void startE(String url) {
+        Uri uri = Uri.parse(url);
+        Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+        startActivity(intent);
+    }
+
+    /**
+     * 本文框显示本文
+     */
+    private void handleOtherText(final String text) {
+        // 判断是否符合基本的json格式	可添加解析类工具
+        if (!text.matches("^\\{.*")) {
+            showCopyTextOption(text);
+        }
+    }
+
+    /**
+     * 显示普通文本，携带复制信息按钮
+     *
+     * @param text
+     */
+    private void showCopyTextOption(final String text) {
+        new AlertDialog(this).builder().setMsg(text)
+                .setPositiveButton("复制", new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                        ClipData myClip = ClipData.newPlainText("text", text);
+                        clipboard.setPrimaryClip(myClip);
+                        Toast.makeText(CommonScanActivity.this, "复制成功", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("取消", new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        /** 重新扫描 */
+                        startScan();
+                    }
+                }).show();
+    }
+
+    /**
+     * 获取粘贴板内容
+     */
+    public void pause() {
+        ClipboardManager cbm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        cbm.getPrimaryClip().getItemAt(0).getText().toString();
     }
 
 }

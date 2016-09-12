@@ -23,7 +23,7 @@ public class BeepManager implements MediaPlayer.OnCompletionListener, MediaPlaye
 
 	static final String TAG = BeepManager.class.getSimpleName();
 
-	static final float BEEP_VOLUME = 0.10f;
+	static final float BEEP_VOLUME = 0.50f;
 	static final long VIBRATE_DURATION = 200L;
 
 	final Activity activity;
@@ -54,6 +54,7 @@ public class BeepManager implements MediaPlayer.OnCompletionListener, MediaPlaye
 	 * 重启响铃和振动
 	 */
 	public synchronized void playBeepSoundAndVibrate() {
+		Log.e("响铃","振动");
 		if (playBeep && mediaPlayer != null) {
 			mediaPlayer.start();
 		}

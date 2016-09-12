@@ -1,6 +1,7 @@
 package com.runtai.scancode;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -18,6 +19,7 @@ import android.os.Environment;
 import android.text.TextUtils;
 import android.view.View;
 import android.view.WindowManager;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -41,30 +43,29 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.Hashtable;
 
-import butterknife.Bind;
-import butterknife.ButterKnife;
-import butterknife.OnClick;
-
 /**
  * 生成二维码
  */
-public class CreateCodeActivity extends Activity implements ActionSheet.OnSheetItemClickListener{
-    @Bind(R.id.et_code_key)
+public class CreateCodeActivity extends Activity implements ActionSheet.OnSheetItemClickListener, View.OnClickListener {
+
     EditText etCodeKey;
-    @Bind(R.id.btn_create_code)
     Button btnCreateCode;
-    @Bind(R.id.iv_2_code)
     ImageView iv2Code;
-    @Bind(R.id.iv_bar_code)
     ImageView ivBarCode;
+
+    Button btn_create_code, btn_create_code_and_img;
 
     int width;
     int height;
 
-    /** 头像背景边距 */
+    /**
+     * 头像背景边距
+     */
     public int biankuan = 20;
 
-    /** 圆角半径 */
+    /**
+     * 圆角半径
+     */
     int roundPx = 20;
 
     private GoogleApiClient client;
@@ -74,7 +75,18 @@ public class CreateCodeActivity extends Activity implements ActionSheet.OnSheetI
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_create_code);
         getScreen();
-        ButterKnife.bind(this);
+
+
+        etCodeKey = (EditText) findViewById(R.id.et_code_key);
+        btnCreateCode = (Button) findViewById(R.id.btn_create_code);
+        iv2Code = (ImageView) findViewById(R.id.iv_2_code);
+        ivBarCode = (ImageView) findViewById(R.id.iv_bar_code);
+
+        btn_create_code = (Button) findViewById(R.id.btn_create_code);
+        btn_create_code_and_img = (Button) findViewById(R.id.btn_create_code_and_img);
+        btn_create_code.setOnClickListener(this);
+        btn_create_code_and_img.setOnClickListener(this);
+
         iv2Code.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View v) {
@@ -85,18 +97,17 @@ public class CreateCodeActivity extends Activity implements ActionSheet.OnSheetI
         });
         client = new GoogleApiClient.Builder(this).addApi(AppIndex.API).build();
     }
+
     private ActionSheet actionSheet;
+
     private void doSomeThing() {
         actionSheet = new ActionSheet(this)
                 .builder()
                 .setCancelable(true)
                 .setCanceledOnTouchOutside(false)
-                .addSheetItem("发送给好友", ActionSheet.SheetItemColor.Blue,
-                        this)
-                .addSheetItem("保存到手机", ActionSheet.SheetItemColor.Blue,
-                        this)
-                .addSheetItem("收藏", ActionSheet.SheetItemColor.Blue,
-                        this);
+                .addSheetItem("发送给好友", ActionSheet.SheetItemColor.Blue, this)
+                .addSheetItem("保存到手机", ActionSheet.SheetItemColor.Blue, this)
+                .addSheetItem("收藏", ActionSheet.SheetItemColor.Blue, this);
         actionSheet.show();
     }
 
@@ -108,49 +119,14 @@ public class CreateCodeActivity extends Activity implements ActionSheet.OnSheetI
         width = wm.getDefaultDisplay().getWidth();
         height = wm.getDefaultDisplay().getHeight();
     }
-    @OnClick({R.id.btn_create_code, R.id.btn_create_code_and_img})
-    public void clickListener(View view) {
-        String key = etCodeKey.getText().toString();
-        switch (view.getId()) {
-            case R.id.btn_create_code: //生成码
-                if (TextUtils.isEmpty(key)) {
-                    Toast.makeText(this, "请输入内容", Toast.LENGTH_SHORT).show();
-                } else {
-                    create2Code(key);
-                    createBarCode(key);
-                }
-                break;
-            case R.id.btn_create_code_and_img: //生成码(带头像)
-                if (TextUtils.isEmpty(key)) {
-                    Toast.makeText(this, "请输入内容", Toast.LENGTH_SHORT).show();
-                } else {
-                    /** 生成二维码 */
-                    Bitmap bitmap = create2Code(key);//1080
-                    /** 生成头像 */
-                    Bitmap headBitmap = getHeadBitmap(bitmap.getWidth() / 4 - biankuan);//250(整个头像尺寸是二维码尺寸的1/4)
-                    /** 根据头像尺寸生成头像背景(边框效果) */
-                    Bitmap baise = miaobian(headBitmap);//270
-                    /** 加工头像成圆角矩形 */
-                    headBitmap = getRoundedCornerBitmaps(headBitmap);
-                    /** 加工头像背景成圆角矩形 */
-                    baise = getRoundedCornerBitmaps(baise);
-                    /** 头像和头像背景合成 */
-                    Bitmap hecheng = combineBitmap(baise, headBitmap);
-                    if (bitmap != null && headBitmap != null) {
-                        this.bitmap = combineBitmap(bitmap, hecheng);//这里合成的图片用于保存到手机
-                        createQRCodeBitmapWithPortrait(bitmap, hecheng);
-                    }
-                }
-                break;
-        }
-    }
 
     /**
      * 生成圆角矩形
+     *
      * @param bitmap
      * @return
      */
-    public Bitmap getRoundedCornerBitmaps(Bitmap bitmap){
+    public Bitmap getRoundedCornerBitmaps(Bitmap bitmap) {
         Bitmap output = Bitmap.createBitmap(bitmap.getWidth(), bitmap.getHeight(), Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(output);
         Paint paint = new Paint();
@@ -243,6 +219,7 @@ public class CreateCodeActivity extends Activity implements ActionSheet.OnSheetI
 
     /**
      * 图片合成
+     *
      * @param background
      * @param foreground
      * @return
@@ -267,6 +244,7 @@ public class CreateCodeActivity extends Activity implements ActionSheet.OnSheetI
     /**
      * (废弃)
      * 把二维码中间的正方形头像处理成四角圆形 (在返回的Bitmap再处理描边(白色))
+     *
      * @param bitmap
      * @return
      */
@@ -295,10 +273,11 @@ public class CreateCodeActivity extends Activity implements ActionSheet.OnSheetI
 
     /**
      * 增加白色边框
+     *
      * @param bitmap
      * @return
      */
-    public Bitmap miaobian(Bitmap bitmap){
+    public Bitmap miaobian(Bitmap bitmap) {
         Bitmap cbitmap = Bitmap.createBitmap(bitmap.getWidth() + biankuan, bitmap.getHeight() + biankuan, Bitmap.Config.ARGB_8888);
         Paint paint = new Paint();
         paint.setColor(Color.WHITE);// 设置白色
@@ -442,7 +421,8 @@ public class CreateCodeActivity extends Activity implements ActionSheet.OnSheetI
     }
 
     private Bitmap bitmap;
-    /***
+
+    /**
      * 判断点击哪个条目做相应的事情
      *
      * @param which
@@ -468,11 +448,55 @@ public class CreateCodeActivity extends Activity implements ActionSheet.OnSheetI
 
     private void sendToFriends() {
         Intent intent = new Intent(Intent.ACTION_SEND);
-        String dirAndName = "/" + ToolImage.dir + "/" + ToolImage.fileName + ToolImage.suffix;
-        Uri imageUri = Uri.parse(this.getExternalCacheDir() + dirAndName);
+        String dirAndName = "/" + ToolImage.dir + "/" + ToolImage.fileName;
+        Uri imageUri = Uri.parse(Environment.getExternalStorageDirectory() + dirAndName);
         intent.setType("image/*");
         intent.putExtra(Intent.EXTRA_STREAM, imageUri);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(Intent.createChooser(intent, getTitle()));
+    }
+
+    @Override
+    public void onClick(View view) {
+        String key = etCodeKey.getText().toString();
+        switch (view.getId()) {
+            case R.id.btn_create_code: //生成
+                if (TextUtils.isEmpty(key)) {
+                    Toast.makeText(this, "请输入内容", Toast.LENGTH_SHORT).show();
+                } else {
+                    keyboardHide();
+                    create2Code(key);
+                    createBarCode(key);
+                }
+                break;
+            case R.id.btn_create_code_and_img: //生成(携带头像)
+                if (TextUtils.isEmpty(key)) {
+                    Toast.makeText(this, "请输入内容", Toast.LENGTH_SHORT).show();
+                } else {
+                    keyboardHide();
+                    /** 生成二维码 */
+                    Bitmap bitmap = create2Code(key);//1080
+                    /** 生成头像 */
+                    Bitmap headBitmap = getHeadBitmap(bitmap.getWidth() / 4 - biankuan);//250(整个头像尺寸是二维码尺寸的1/4)
+                    /** 根据头像尺寸生成头像背景(边框效果) */
+                    Bitmap baise = miaobian(headBitmap);//270
+                    /** 加工头像成圆角矩形 */
+                    headBitmap = getRoundedCornerBitmaps(headBitmap);
+                    /** 加工头像背景成圆角矩形 */
+                    baise = getRoundedCornerBitmaps(baise);
+                    /** 头像和头像背景合成 */
+                    Bitmap hecheng = combineBitmap(baise, headBitmap);
+                    if (bitmap != null && headBitmap != null) {
+                        this.bitmap = combineBitmap(bitmap, hecheng);//这里合成的图片用于保存到手机
+                        createQRCodeBitmapWithPortrait(bitmap, hecheng);
+                    }
+                }
+                break;
+        }
+    }
+
+    public void keyboardHide() {
+        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.hideSoftInputFromWindow(etCodeKey.getWindowToken(), 0); //强制隐藏键盘
     }
 }

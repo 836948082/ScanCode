@@ -7,15 +7,25 @@
 
     <EditText
         android:id="@+id/et_code_key"
+        style="?android:attr/textViewStyle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:background="@null"
         android:gravity="center"
         android:hint="输入要生成码的内容"
+        android:padding="10dp"
+        android:textColor="@color/blue_text"
         android:textSize="17sp" />
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="0.5dp"
+        android:background="@color/black" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
         android:orientation="horizontal">
 
         <Button
@@ -23,16 +33,16 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="生成码"
-            android:textSize="17sp" />
+            android:text="生成(二维码、条形码)"
+            android:textSize="15sp" />
 
         <Button
             android:id="@+id/btn_create_code_and_img"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="加个头像"
-            android:textSize="17sp" />
+            android:text="生成二维码(携带头像)"
+            android:textSize="15sp" />
     </LinearLayout>
 
     <ScrollView
