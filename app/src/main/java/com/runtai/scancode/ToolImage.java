@@ -18,7 +18,7 @@ import java.util.Date;
  */
 public abstract class ToolImage {
 
-    public static File file;
+        public static File file;
 
     /**
      * 文件夹名
